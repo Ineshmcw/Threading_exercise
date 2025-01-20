@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<root>
+    <person name="ele" age="23">
+        <address>123 Main Street</address>
+    </person>
+    <person name="lex" age="24">
+        <address>456 Park Avenue</address>
+    </person>
+</root>
