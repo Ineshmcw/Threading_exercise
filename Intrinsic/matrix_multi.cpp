@@ -1,54 +1,70 @@
 #include <iostream>
-#include <vector>
 #include <chrono>
+#include <immintrin.h>
+
 using namespace std;
 
-void mulMat(vector<vector<int>>& m1, vector<vector<int>>& m2, 
-            vector<vector<int>>& res) {
-    int r1 = m1.size();
-    int c1 = m1[0].size();
-    int r2 = m2.size();
-    int c2 = m2[0].size();
+const int N = 512; // Size of the square matrix
 
-    if (c1 != r2) {
-        cout << "Invalid Input" << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    // Resize result matrix to fit the result dimensions
-    res.resize(r1, vector<int>(c2, 0)); 
-  
-    for (int i = 0; i < r1; i++) {
-        for (int j = 0; j < c2; j++) {
-            for (int k = 0; k < c1; k++) {
-                res[i][j] += m1[i][k] * m2[k][j];
+void mulMat(float* m1, float* m2, float* res, int n) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            float sum = 0.0f;
+            for (int k = 0; k < n; k++) {
+                sum += m1[i * n + k] * m2[k * n + j];
             }
+            res[i * n + j] = sum;
         }
     }
 }
 
-// Driver code
-int main() {
-    int N = 64;
-    vector<vector<int>> m1(N, vector<int>(N, 1));
-    vector<vector<int>> m2(N, vector<int>(N, 1));
-    vector<vector<int>> res;
+void mulMatAVX(float* m1, float* m2, float* res, int n) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            __m256 sum = _mm256_setzero_ps();
+            for (int k = 0; k < n; k += 8) {
+                __m256 row = _mm256_loadu_ps(&m1[i * n + k]);
+                __m256 col = _mm256_loadu_ps(&m2[k * n + j]);
+                sum = _mm256_fmadd_ps(row, col, sum);
+            }
 
-    auto start = chrono::high_resolution_clock::now();
-    mulMat(m1, m2, res);
-    auto end = chrono::high_resolution_clock::now();
-
-    cout << "Multiplication of given two matrices (first 5x5) is:\n";
-    for (int i = 0; i < 5 && i < res.size(); i++) {
-        for (int j = 0; j < 5 && j < res[i].size(); j++) {
-            cout << res[i][j] << "\t";
+            float temp[8];
+            _mm256_storeu_ps(temp, sum);
+            res[i * n + j] = temp[0] + temp[1] + temp[2] + temp[3] + temp[4] + temp[5] + temp[6] + temp[7];
         }
-        cout << endl;
+    }
+}
+
+int main() {
+    alignas(32) float m1[N * N], m2[N * N], res[N * N] = {0}; // Matrices are aligned for AVX
+
+    // Initialize matrices
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
+            m1[i * N + j] = 1.0f; // Fill with 1s
+            m2[i * N + j] = 1.0f; // Fill with 1s
+        }
     }
 
-    chrono::duration<double> execTime = end - start;
-    cout << "Execution time: " << execTime.count() << " seconds" << endl;
+    // Measure time for non-AVX implementation
+    auto start = chrono::high_resolution_clock::now();
+    mulMat(m1, m2, res, N);
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed_non_avx = end - start;
+
+    cout << "Execution time (Before AVX): " << elapsed_non_avx.count() << " seconds\n";
+
+    // Measure time for AVX implementation
+    start = chrono::high_resolution_clock::now();
+    mulMatAVX(m1, m2, res, N);
+    end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed_avx = end - start;
+
+    cout << "Execution time (After AVX): " << elapsed_avx.count() << " seconds\n";
+
+    // Calculate speed difference in percentage
+    double speed_difference = ((elapsed_non_avx.count() - elapsed_avx.count()) / elapsed_non_avx.count()) * 100.0;
+    cout << "Speed improvement with AVX: " << speed_difference << "%\n";
 
     return 0;
 }
-
