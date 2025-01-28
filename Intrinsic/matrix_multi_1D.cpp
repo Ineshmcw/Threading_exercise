@@ -4,7 +4,7 @@
 
 using namespace std;
 
-const int N = 512; // Size of the square matrix
+const int N = 512;
 
 void mulMat(float* m1, float* m2, float* res, int n) {
     for (int i = 0; i < n; i++) {
@@ -21,19 +21,20 @@ void mulMat(float* m1, float* m2, float* res, int n) {
 void mulMatAVX(float* m1, float* m2, float* res, int n) {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            __m256 sum = _mm256_setzero_ps();
-            for (int k = 0; k < n; k += 8) {
-                __m256 row = _mm256_loadu_ps(&m1[i * n + k]);
-                __m256 col = _mm256_loadu_ps(&m2[k * n + j]);
-                sum = _mm256_fmadd_ps(row, col, sum);
+            __m128 sum = _mm_setzero_ps();
+            for (int k = 0; k < n; k += 4) {
+                __m128 row = _mm_loadu_ps(&m1[i * n + k]);
+                __m128 col = _mm_loadu_ps(&m2[k * n + j]);
+                sum = _mm_add_ps(sum, _mm_mul_ps(row, col));
             }
 
-            float temp[8];
-            _mm256_storeu_ps(temp, sum);
-            res[i * n + j] = temp[0] + temp[1] + temp[2] + temp[3] + temp[4] + temp[5] + temp[6] + temp[7];
+            float temp[4];
+            _mm_storeu_ps(temp, sum);
+            res[i * n + j] = temp[0] + temp[1] + temp[2] + temp[3];
         }
     }
 }
+
 
 int main() {
     alignas(32) float m1[N * N], m2[N * N], res[N * N] = {0}; // Matrices are aligned for AVX
