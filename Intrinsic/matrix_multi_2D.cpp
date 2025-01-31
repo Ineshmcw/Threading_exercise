@@ -234,26 +234,23 @@ Along with transposing with unpacklo, unpackhi, shuffle and permute speed imporo
 /*
  * Function: matrix_multiply_avx_temp
  * 
- * This function performs matrix multiplication using AVX (Advanced Vector Extensions) intrinsics.
- * Unlike the FMA-based version, this implementation stores the intermediate sum results in a temporary array 
- * before accumulating them into a scalar. This approach results in a **77% speed improvement for N = 128**.
+ * Performs matrix multiplication using AVX intrinsics, storing intermediate sums in a temporary array. 
  * 
- * Optimizations used:
- * 1. **Vectorized Loading:** Loads 8 floating-point values at a time using `_mm256_loadu_ps`.
- * 2. **Vectorized Multiplication and Summation:** Uses `_mm256_mul_ps` for element-wise multiplication and `_mm256_add_ps` to accumulate results.
- * 3. **Temporary Storage:** Stores the AVX register result into an array using `_mm256_storeu_ps`, then sums up the 8 elements sequentially.
- * 4. **Matrix Transposition:** The second matrix is transposed using `unpacklo`, `unpackhi`, `shuffle`, and `permute` instructions to improve memory access patterns.
+ * Optimizations:
+ * 1. **Vectorized Loading & Computation:** Uses `_mm256_loadu_ps`, `_mm256_mul_ps`, and `_mm256_add_ps`.
+ * 2. **Temporary Storage:** Stores results with `_mm256_storeu_ps` before summing.
+ * 3. **Matrix Transposition:** Improves cache efficiency using shuffle and permute operations.
  * 
  * Performance:
- * - Transposing the matrix with '__m256_loadu_ps' and storing column wise manually, results in **69% improvement for N = 128**.
- * - Achieves approximately **77% improvement for N = 128** ( with shuffle and permute transpose).
- * - While slightly slower than the `_mm256_fmadd_ps` version, this method remains efficient.
+ * - **69% improvement for N = 128** with manual transposition.
+ * - **77% improvement for N = 128** using shuffle and permute.
  * 
  * Parameters:
- * - `m1`: Input matrix of size N x N.
- * - `trans`: Transposed second matrix of size N x N (precomputed for better cache efficiency).
- * - `res`: Output matrix of size N x N to store the result.
+ * - `m1`: Input matrix (N x N).
+ * - `trans`: Transposed second matrix (N x N).
+ * - `res`: Output matrix (N x N).
  */
+
 
 /*
     for (int i = 0; i < N; i++) {
@@ -282,29 +279,6 @@ Used loadu, fmadd, hadd(horizontal add) and used castps, extract(sum the low and
 Along with transposing with unpacklo, unpackhi, shuffle and permute speed imporovement is 81% for N=128
 
 */
-/*
- * Function: matrix_multiply_avx
- * 
- * This function performs matrix multiplication using AVX (Advanced Vector Extensions) intrinsics for optimized performance. 
- * The input matrices are assumed to be of size N x N, where N is a globally defined constant and a multiple of 8.
- * The function utilizes AVX2 instructions for efficient vectorized computation.
- * 
- * Optimizations used:
- * 1. **Vectorized Loading:** Loads 8 floating-point values at a time using `_mm256_loadu_ps`.
- * 2. **Fused Multiply-Add (FMA):** Uses `_mm256_fmadd_ps` to perform `sum += vecA * vecB` in a single instruction, reducing instruction count and improving efficiency.
- * 3. **Matrix Transposition:** The second matrix is transposed before multiplication to improve cache locality and avoid non-contiguous memory access.
- * 4. **Horizontal Summation:** Uses `_mm256_hadd_ps` to efficiently sum partial results across vector lanes.
- * 5. **Final Summation and Extraction:** Converts the 256-bit AVX register into two 128-bit registers, sums them up, and extracts the final scalar value.
- * 
- * Performance Improvement:
- * - Transposing the matrix with '__m256_loadu_ps' and storing column wise manually, the performance improvement is around **74% for N = 128**.
- * - Using `_mm256_loadu_ps`, `_mm256_fmadd_ps`, `_mm256_hadd_ps`, and transposition, the performance improvement is approximately **81% for N = 128**.
- * 
- * Parameters:
- * - `m1`: Input matrix of size N x N.
- * - `trans`: Transposed second matrix of size N x N (precomputed for better cache efficiency).
- * - `res`: Output matrix of size N x N to store the result.
- */
 
 /*
  * Function: matrix_multiply_avx
@@ -318,8 +292,8 @@ Along with transposing with unpacklo, unpackhi, shuffle and permute speed imporo
  * 4. **Efficient Summation:** Utilizes `_mm256_hadd_ps` for fast horizontal summation.
  * 
  * Performance:
- * - **74% speedup for N = 128** using transposition with manual column-wise storage.
- * - **81% speedup for N = 128** using transposition with unpacklo and unpackhi.
+ * - **74% speedup for N = 128** with manual transposition.
+ * - **81% speedup for N = 128** using using shuffle and permute.
  * 
  * Parameters:
  * - `m1`: Input matrix (N x N).
