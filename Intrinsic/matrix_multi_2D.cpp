@@ -3,6 +3,9 @@
 #include <immintrin.h>
 #include <math.h>
 #include <random>
+#include <stdio.h>
+#include <cstring>
+
 
 using namespace std;
 
@@ -21,53 +24,12 @@ void mulMat(float m1[N][N], float m2[N][N], float res[N][N], int n) {
     }
 }
 
-
-// Function to check if two matrices are equal element-wise
-void mulMatAVX(float m1[N][N], float m2[N][N], float res[N][N], int n) {
-    for (int columns = 0; columns < n; columns++) {
-        
-        float column[N];
-        for (size_t row = 0; row < N; row ++ ) {
-            column[row] = m2[row][columns];
-        }
-
-        for (int row = 0; row < N; row++) {
-            __m256 sum = _mm256_setzero_ps();
-
-            for (int k = 0; k < N; k += 8) {
-                __m256 vecA = _mm256_loadu_ps(&m1[row][k]);
-                __m256 vecB = _mm256_loadu_ps(&column[k]);
-                __m256 prod = _mm256_mul_ps(vecA, vecB);
-                sum = _mm256_add_ps(sum, prod);
-            }
-
-            float temp[8];
-            _mm256_storeu_ps(temp, sum);
-            res[row][columns] = temp[0] + temp[1] + temp[2] + temp[3] + temp[4] + temp[5] + temp[6] + temp[7];
-        }
-    }
+void _print_m256(__m256 val) {
+    float* f = (float*)&val;
+    printf("{%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f}\n", 
+           f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7]);
 }
 
-
-
-
-
-
-bool areMatricesEqual(float m1[N][N], float m2[N][N], float tolerance = 1e-6) {
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
-            // Compare the absolute difference with tolerance
-            float diff = fabs(m1[i][j] - m2[i][j]);
-            if (diff > tolerance) {
-                cout << "m1[" << i << "][" << j << "] = " << m1[i][j] << ", m2[" << i << "][" << j << "] = " << m2[i][j] << endl;
-                cout << "Difference: " << diff << endl;
-                return false; // Matrices are not equal
-            }
-        }
-    }
-    cout << "Matrices are equal within the tolerance." << endl;
-    return true; // Matrices are equal within the tolerance
-}
 
 void printMatrices(float m1[N][N], float m2[N][N]) {
     cout << "Matrix 1:" << endl;
@@ -87,31 +49,107 @@ void printMatrices(float m1[N][N], float m2[N][N]) {
     }
 }
 
-int main() {
-    float m1[N][N], m2[N][N], res1[N][N] = {0}, res2[N][N] = {0};
+ void mulMatAVX(float m1[N][N], float m2[N][N], float res[N][N], int n) {
 
-    // Random number generator setup
-    // random_device rd;
-    // mt19937 gen(rd());
-    // uniform_real_distribution<float> dis(0.0f, 10.0f); // Random values between 0 and 10
+    int chunk_size = 8;
+    int aligned_n = (n / chunk_size) * chunk_size;  // Largest multiple of 8 ≤ N
 
-    // // Initialize matrices with random numbers
-    // for (int i = 0; i < N; ++i) {
-    //     for (int j = 0; j < N; ++j) {
-    //         m1[i][j] = dis(gen); // Fill m1 with random numbers
-    //         m2[i][j] = dis(gen); // Fill m2 with random numbers
-    //     }
-    // }
+     memset(res, 0, sizeof(float) * N * N);
 
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            m1[i][j] = i * N + j + 1;
+    // Process full 8×8 blocks
+    for (int bi = 0; bi < aligned_n; bi += chunk_size) {     
+        for (int bj = 0; bj < aligned_n; bj += chunk_size) {  
+            for (int bk = 0; bk < aligned_n; bk += chunk_size) {  
+
+
+                // Load 8 rows of m2
+                for (int rowm2 = bk; rowm2 < bk + chunk_size; rowm2 += 8) {
+                    __m256 row0 = _mm256_loadu_ps(&m2[rowm2 + 0][bj]);
+                    __m256 row1 = _mm256_loadu_ps(&m2[rowm2 + 1][bj]);
+                    __m256 row2 = _mm256_loadu_ps(&m2[rowm2 + 2][bj]);
+                    __m256 row3 = _mm256_loadu_ps(&m2[rowm2 + 3][bj]);
+                    __m256 row4 = _mm256_loadu_ps(&m2[rowm2 + 4][bj]);
+                    __m256 row5 = _mm256_loadu_ps(&m2[rowm2 + 5][bj]);
+                    __m256 row6 = _mm256_loadu_ps(&m2[rowm2 + 6][bj]);
+                    __m256 row7 = _mm256_loadu_ps(&m2[rowm2 + 7][bj]);
+
+                    for (int rowm1 = bi; rowm1 < bi + chunk_size; rowm1++) {
+                        __m256 res_store = _mm256_loadu_ps(&res[rowm1][bj]);
+
+                        res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2 + 0]), row0));
+                        res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2 + 1]), row1));
+                        res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2 + 2]), row2));
+                        res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2 + 3]), row3));
+                        res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2 + 4]), row4));
+                        res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2 + 5]), row5));
+                        res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2 + 6]), row6));
+                        res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2 + 7]), row7));
+
+                        _mm256_storeu_ps(&res[rowm1][bj], res_store);
+                    }
+
+                }
+            }
+             //load the remaning rows of m2
+            for (int rowm2 = aligned_n; rowm2 < n; rowm2 ++) {
+                __m256 row = _mm256_loadu_ps(&m2[rowm2][bj]);
+
+                for (int rowm1 = bi; rowm1 < bi + chunk_size; rowm1++) {
+                    __m256 res_store = _mm256_loadu_ps(&res[rowm1][bj]);
+                    res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2]), row));
+                    _mm256_storeu_ps(&res[rowm1][bj], res_store);
+                }
+            }
         }
     }
 
+    // **Handle remaining rows and columns (Fixing the missing last row/column issue)**
+    for (int i = 0; i < n; i++) {
+        for (int j = aligned_n; j < n; j++) {  // Remaining columns
+            float sum = 0;
+            for (int k = 0; k < n; k++) {
+                sum += m1[i][k] * m2[k][j];
+            }
+            res[i][j] = sum;
+        }
+    }
+    for (int i = aligned_n; i < n; i++) {  // Remaining rows
+        for (int j = 0; j < aligned_n; j++) {
+            float sum = 0;
+            for (int k = 0; k < n; k++) {
+                sum += m1[i][k] * m2[k][j];
+            }
+            res[i][j] = sum;
+        }
+    }
+}
+
+
+
+bool areMatricesEqual(float m1[N][N], float m2[N][N], float tolerance = 1e-6) {
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
+            // Compare the absolute difference with tolerance
+            float diff = fabs(m1[i][j] - m2[i][j]);
+            if (diff > tolerance) {
+                cout << "m1[" << i << "][" << j << "] = " << m1[i][j] << ", m2[" << i << "][" << j << "] = " << m2[i][j] << endl;
+                cout << "Difference: " << diff << endl;
+                return false; // Matrices are not equal
+            }
+        }
+    }
+    cout << "Matrices are equal within the tolerance." << endl;
+    return true; // Matrices are equal within the tolerance
+}
+
+
+int main() {
+    float m1[N][N], m2[N][N], res1[N][N] = {0}, res2[N][N] = {0};
+
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            m2[i][j] = (N * N) - (i * N + j);
+            m1[i][j] = 1;
+            m2[i][j] = 2;
         }
     }
 
@@ -373,9 +411,55 @@ void mulMatAVX(float m1[N][N], float m2[N][N], float res[N][N], int n) {
 
 */
 
+/*
+New methord logic
+*/
+
+/*
+    //1. For nxn for 256 intrinsic, first we load the 8 rows of matrix 2. 
+    //2. we take in the first element of matrix 1 and muliply with first row of matrix 2
+    //3. we store the each multiplied values in the res matrix first row respectively.
+    //4. we then modifiy step 2 by taking the 2nd element of 1st matrix 1st row and multiply them with the second row of matrix 2.
+    //5. store them in by adding the res matrix first row previously saved values.
+    //6. we continue this step until all the elements of the first row is properly identified. 
+    //7. now we move to the second row of first matrix and proceed the same. 
+*/
 
 
+/*
+Starting idea for block wise matrix multiplication.
+*/
 
+/*
+
+    for(int i = 0; i < n; i += 8) {
+        for(int j = 0; j < n; j += 8) {
+            for(int k = 0; k < n; k += 8) {
+                for(int x = i; x < i + 8; x++) {
+                    for(int y = j; y < j + 8; y++) {
+                        __m256 c_vec = _mm256_setzero_ps();
+                        for(int z = k; z < k + 8; z += 8) {
+                            __m256 a_vec = _mm256_loadu_ps(&m1[i][k]);  // Load 8 elements of A[i][k]
+                            __m256 b_vec = _mm256_loadu_ps(&m2[k][j]);  // Load 8 elements of B[k][j]
+                            c_vec = _mm256_fmadd_ps(a_vec, b_vec, c_vec); // FMA: c_vec += a_vec * b_vec
+                        }
+                        res[i + x][j + y] = sum;
+                    }
+                }
+            }
+        }
+    }
+*/
+
+
+    // for(int rows = 0; rows < n; rows += 50) {
+    //     for(int cols = 0; cols < n; cols += 8) {
+    //         for(int col8 = cols; col8 < cols + 8; col8++) {
+    //             _m256 row1 = _mm256_loadu_ps(&m2[rows][col8]);
+    //             for(int row8 = rows; row8 < rows + 8; row8++) {
+
+    //         __m256
+    
 
 
 // // Function to check if two matrices are equal element-wise
