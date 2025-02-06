@@ -8,12 +8,14 @@
 
 using namespace std;
 
-const int N = 128;
+const int N = 256;
+const int M = 128;
 
 // Standard matrix multiplication using 2D arrays
-void mulMat(float m1[N][N], float m2[N][N], float res[N][N], int n) {
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
+// void mulMat(float m1[N][N], float m2[N][N], float res[N][N], int n) {
+void mulMat(float m1[M][N], float m2[N][M], float res[M][M], int m, int n) {
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < m; j++) {
             float sum = 0.0f;
             for (int k = 0; k < n; k++) {
                 sum += m1[i][k] * m2[k][j];
@@ -23,6 +25,8 @@ void mulMat(float m1[N][N], float m2[N][N], float res[N][N], int n) {
     }
 }
 
+
+
 void _print_m256(__m256 val) {
     float* f = (float*)&val;
     printf("{%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f}\n", 
@@ -30,32 +34,29 @@ void _print_m256(__m256 val) {
 }
 
 
-void printMatrices(float m1[N][N], float m2[N][N]) {
-    cout << "Matrix 1:" << endl;
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
-            cout << m1[i][j] << " ";
+void printMatrices(float res[M][M], bool isAVX = false) {
+    if (isAVX)
+    cout << "Result Matrix(after AVX):" << endl;
+    else
+    cout << "Result Matrix(before AVX):" << endl;
+    for (int i = 0; i < M; ++i) {
+        for (int j = 0; j < M; ++j) {
+            cout << res[i][j] << " ";
         }
         cout << endl;
     }
 
-    cout << "Matrix 2:" << endl;
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
-            cout << m2[i][j] << " ";
-        }
-        cout << endl;
-    }
 }
 
- void mulMatAVX(float m1[N][N], float m2[N][N], float res[N][N], int n) {
+ void mulMatAVX(float m1[M][N], float m2[N][M], float res[M][M], int m, int n) {
 
     int chunk_size = 8;
     int aligned_n = (n / chunk_size) * chunk_size;  // Largest multiple of 8 ≤ N
+    int aligned_m = (m / chunk_size) * chunk_size;  // Largest multiple of 8 ≤ N
 
     // Process full 8×8 blocks
-    for (int bi = 0; bi < aligned_n; bi += chunk_size) {     
-        for (int bj = 0; bj < aligned_n; bj += chunk_size) {  
+    for (int bi = 0; bi < aligned_m; bi += chunk_size) {     
+        for (int bj = 0; bj < aligned_m; bj += chunk_size) {  
             for (int bk = 0; bk < aligned_n; bk += chunk_size) {  
 
                 // Load 8 rows of m2
@@ -121,10 +122,9 @@ void printMatrices(float m1[N][N], float m2[N][N]) {
 
 
 
-bool areMatricesEqual(float m1[N][N], float m2[N][N], float tolerance = 1e-6) {
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
-            // Compare the absolute difference with tolerance
+bool areMatricesEqual(float m1[M][M], float m2[M][M], float tolerance = 1e-6) {
+    for (int i = 0; i < M; ++i) {
+        for (int j = 0; j < M; ++j) { // Use M instead of N here
             float diff = fabs(m1[i][j] - m2[i][j]);
             if (diff > tolerance) {
                 cout << "m1[" << i << "][" << j << "] = " << m1[i][j] << ", m2[" << i << "][" << j << "] = " << m2[i][j] << endl;
@@ -138,34 +138,48 @@ bool areMatricesEqual(float m1[N][N], float m2[N][N], float tolerance = 1e-6) {
 }
 
 
-int main() {
-    float m1[N][N], m2[N][N], res1[N][N] = {0}, res2[N][N] = {0};
 
-    for (int i = 0; i < N; i++) {
+int main() {
+    // float m1[N][N], m2[N][N], res1[N][N] = {0}, res2[N][N] = {0};
+    float m1[M][N] __attribute__((aligned(32)));
+    float m2[N][M] __attribute__((aligned(32)));
+
+    float res1[M][M] = {0}, res2[M][M] = {0};
+
+    cout<<"m1 matrix:"<<endl;
+    for (int i = 0; i < M; i++) {
         for (int j = 0; j < N; j++) {
             m1[i][j] = 1;
-            m2[i][j] = 2;
+            cout << m1[i][j] << " ";
         }
+        cout<<endl;
+    }
+
+    cout<<"m2 matrix:"<<endl;
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < M; j++) {
+            m2[i][j] = 2;
+            cout << m2[i][j] << " ";
+        }
+        cout<<endl;
     }
 
     // Measure time for non-AVX implementation using 2D arrays
     auto start = chrono::high_resolution_clock::now();
-    mulMat(m1, m2, res1, N);
+    mulMat(m1, m2, res1, M, N);
     auto end = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed_non_avx = end - start;
 
-    cout << "Execution time (Before AVX): " << elapsed_non_avx.count() << " seconds\n";
-
     // Measure time for AVX-based implementation
     start = chrono::high_resolution_clock::now();
-    mulMatAVX(m1, m2, res2, N);
+    mulMatAVX(m1, m2, res2, M, N);
     end = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed_avx = end - start;
 
-    printMatrices(m1, m2);
-    printMatrices(res1, res2);
+    printMatrices(res1);  
+    printMatrices(res2, true);  
 
-
+    cout << "Execution time (Before AVX): " << elapsed_non_avx.count() << " seconds\n";
     cout << "Execution time (With AVX): " << elapsed_avx.count() << " seconds\n";
     double speed_difference = ((elapsed_non_avx.count() - elapsed_avx.count()) / elapsed_non_avx.count()) * 100.0;
     cout << "Speed improvement with AVX: " << speed_difference << "%\n";
