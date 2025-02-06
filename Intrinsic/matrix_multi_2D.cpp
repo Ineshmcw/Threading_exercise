@@ -7,8 +7,8 @@
 
 using namespace std;
 
-const int N = 128;
-const int M = 128;
+const int N = 123;
+const int M = 124;
 
 // Standard matrix multiplication using 2D arrays
 // void mulMat(float m1[N][N], float m2[N][N], float res[N][N], int n) {
@@ -111,9 +111,9 @@ void mulMatAVX(float m1[M][N], float m2[N][M], float res[M][M], int m, int n)
     }
 
     // Handling remaining rows and columns
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < m; i++)
     {
-        for (int j = aligned_n; j < n; j++)
+        for (int j = aligned_n; j < m; j++)
         { // Remaining columns
             float sum = 0;
             for (int k = 0; k < n; k++)
@@ -123,7 +123,8 @@ void mulMatAVX(float m1[M][N], float m2[N][M], float res[M][M], int m, int n)
             res[i][j] = sum;
         }
     }
-    for (int i = aligned_n; i < n; i++)
+
+    for (int i = aligned_m; i < m; i++)
     { // Remaining rows
         for (int j = 0; j < aligned_n; j++)
         {
