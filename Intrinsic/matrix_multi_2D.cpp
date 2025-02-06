@@ -4,7 +4,6 @@
 #include <math.h>
 #include <random>
 #include <stdio.h>
-#include <cstring>
 
 
 using namespace std;
@@ -54,13 +53,10 @@ void printMatrices(float m1[N][N], float m2[N][N]) {
     int chunk_size = 8;
     int aligned_n = (n / chunk_size) * chunk_size;  // Largest multiple of 8 ≤ N
 
-     memset(res, 0, sizeof(float) * N * N);
-
     // Process full 8×8 blocks
     for (int bi = 0; bi < aligned_n; bi += chunk_size) {     
         for (int bj = 0; bj < aligned_n; bj += chunk_size) {  
             for (int bk = 0; bk < aligned_n; bk += chunk_size) {  
-
 
                 // Load 8 rows of m2
                 for (int rowm2 = bk; rowm2 < bk + chunk_size; rowm2 += 8) {
@@ -87,7 +83,6 @@ void printMatrices(float m1[N][N], float m2[N][N]) {
 
                         _mm256_storeu_ps(&res[rowm1][bj], res_store);
                     }
-
                 }
             }
              //load the remaning rows of m2
@@ -103,7 +98,7 @@ void printMatrices(float m1[N][N], float m2[N][N]) {
         }
     }
 
-    // **Handle remaining rows and columns (Fixing the missing last row/column issue)**
+    // Handling remaining rows and columns
     for (int i = 0; i < n; i++) {
         for (int j = aligned_n; j < n; j++) {  // Remaining columns
             float sum = 0;
