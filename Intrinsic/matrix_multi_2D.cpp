@@ -5,19 +5,22 @@
 #include <random>
 #include <stdio.h>
 
-
 using namespace std;
 
-const int N = 256;
+const int N = 128;
 const int M = 128;
 
 // Standard matrix multiplication using 2D arrays
 // void mulMat(float m1[N][N], float m2[N][N], float res[N][N], int n) {
-void mulMat(float m1[M][N], float m2[N][M], float res[M][M], int m, int n) {
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < m; j++) {
+void mulMat(float m1[M][N], float m2[N][M], float res[M][M], int m, int n)
+{
+    for (int i = 0; i < m; i++)
+    {
+        for (int j = 0; j < m; j++)
+        {
             float sum = 0.0f;
-            for (int k = 0; k < n; k++) {
+            for (int k = 0; k < n; k++)
+            {
                 sum += m1[i][k] * m2[k][j];
             }
             res[i][j] = sum;
@@ -25,42 +28,47 @@ void mulMat(float m1[M][N], float m2[N][M], float res[M][M], int m, int n) {
     }
 }
 
-
-
-void _print_m256(__m256 val) {
-    float* f = (float*)&val;
-    printf("{%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f}\n", 
+void _print_m256(__m256 val)
+{
+    float *f = (float *)&val;
+    printf("{%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f}\n",
            f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7]);
 }
 
-
-void printMatrices(float res[M][M], bool isAVX = false) {
+void printMatrices(float res[M][M], bool isAVX = false)
+{
     if (isAVX)
-    cout << "Result Matrix(after AVX):" << endl;
+        cout << "Result Matrix(after AVX):" << endl;
     else
-    cout << "Result Matrix(before AVX):" << endl;
-    for (int i = 0; i < M; ++i) {
-        for (int j = 0; j < M; ++j) {
+        cout << "Result Matrix(before AVX):" << endl;
+    for (int i = 0; i < M; ++i)
+    {
+        for (int j = 0; j < M; ++j)
+        {
             cout << res[i][j] << " ";
         }
         cout << endl;
     }
-
 }
 
- void mulMatAVX(float m1[M][N], float m2[N][M], float res[M][M], int m, int n) {
+void mulMatAVX(float m1[M][N], float m2[N][M], float res[M][M], int m, int n)
+{
 
     int chunk_size = 8;
-    int aligned_n = (n / chunk_size) * chunk_size;  // Largest multiple of 8 ≤ N
-    int aligned_m = (m / chunk_size) * chunk_size;  // Largest multiple of 8 ≤ N
+    int aligned_n = (n / chunk_size) * chunk_size; // Largest multiple of 8 ≤ N
+    int aligned_m = (m / chunk_size) * chunk_size; // Largest multiple of 8 ≤ N
 
     // Process full 8×8 blocks
-    for (int bi = 0; bi < aligned_m; bi += chunk_size) {     
-        for (int bj = 0; bj < aligned_m; bj += chunk_size) {  
-            for (int bk = 0; bk < aligned_n; bk += chunk_size) {  
+    for (int bi = 0; bi < aligned_m; bi += chunk_size)
+    {
+        for (int bj = 0; bj < aligned_m; bj += chunk_size)
+        {
+            for (int bk = 0; bk < aligned_n; bk += chunk_size)
+            {
 
                 // Load 8 rows of m2
-                for (int rowm2 = bk; rowm2 < bk + chunk_size; rowm2 += 8) {
+                for (int rowm2 = bk; rowm2 < bk + chunk_size; rowm2 += 8)
+                {
                     __m256 row0 = _mm256_loadu_ps(&m2[rowm2 + 0][bj]);
                     __m256 row1 = _mm256_loadu_ps(&m2[rowm2 + 1][bj]);
                     __m256 row2 = _mm256_loadu_ps(&m2[rowm2 + 2][bj]);
@@ -70,7 +78,8 @@ void printMatrices(float res[M][M], bool isAVX = false) {
                     __m256 row6 = _mm256_loadu_ps(&m2[rowm2 + 6][bj]);
                     __m256 row7 = _mm256_loadu_ps(&m2[rowm2 + 7][bj]);
 
-                    for (int rowm1 = bi; rowm1 < bi + chunk_size; rowm1++) {
+                    for (int rowm1 = bi; rowm1 < bi + chunk_size; rowm1++)
+                    {
                         __m256 res_store = _mm256_loadu_ps(&res[rowm1][bj]);
 
                         res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2 + 0]), row0));
@@ -86,11 +95,13 @@ void printMatrices(float res[M][M], bool isAVX = false) {
                     }
                 }
             }
-             //load the remaning rows of m2
-            for (int rowm2 = aligned_n; rowm2 < n; rowm2 ++) {
+            // load the remaning rows of m2
+            for (int rowm2 = aligned_n; rowm2 < n; rowm2++)
+            {
                 __m256 row = _mm256_loadu_ps(&m2[rowm2][bj]);
 
-                for (int rowm1 = bi; rowm1 < bi + chunk_size; rowm1++) {
+                for (int rowm1 = bi; rowm1 < bi + chunk_size; rowm1++)
+                {
                     __m256 res_store = _mm256_loadu_ps(&res[rowm1][bj]);
                     res_store = _mm256_add_ps(res_store, _mm256_mul_ps(_mm256_set1_ps(m1[rowm1][rowm2]), row));
                     _mm256_storeu_ps(&res[rowm1][bj], res_store);
@@ -100,19 +111,25 @@ void printMatrices(float res[M][M], bool isAVX = false) {
     }
 
     // Handling remaining rows and columns
-    for (int i = 0; i < n; i++) {
-        for (int j = aligned_n; j < n; j++) {  // Remaining columns
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = aligned_n; j < n; j++)
+        { // Remaining columns
             float sum = 0;
-            for (int k = 0; k < n; k++) {
+            for (int k = 0; k < n; k++)
+            {
                 sum += m1[i][k] * m2[k][j];
             }
             res[i][j] = sum;
         }
     }
-    for (int i = aligned_n; i < n; i++) {  // Remaining rows
-        for (int j = 0; j < aligned_n; j++) {
+    for (int i = aligned_n; i < n; i++)
+    { // Remaining rows
+        for (int j = 0; j < aligned_n; j++)
+        {
             float sum = 0;
-            for (int k = 0; k < n; k++) {
+            for (int k = 0; k < n; k++)
+            {
                 sum += m1[i][k] * m2[k][j];
             }
             res[i][j] = sum;
@@ -120,13 +137,15 @@ void printMatrices(float res[M][M], bool isAVX = false) {
     }
 }
 
-
-
-bool areMatricesEqual(float m1[M][M], float m2[M][M], float tolerance = 1e-6) {
-    for (int i = 0; i < M; ++i) {
-        for (int j = 0; j < M; ++j) { // Use M instead of N here
+bool areMatricesEqual(float m1[M][M], float m2[M][M], float tolerance = 1e-6)
+{
+    for (int i = 0; i < M; ++i)
+    {
+        for (int j = 0; j < M; ++j)
+        { // Use M instead of N here
             float diff = fabs(m1[i][j] - m2[i][j]);
-            if (diff > tolerance) {
+            if (diff > tolerance)
+            {
                 cout << "m1[" << i << "][" << j << "] = " << m1[i][j] << ", m2[" << i << "][" << j << "] = " << m2[i][j] << endl;
                 cout << "Difference: " << diff << endl;
                 return false; // Matrices are not equal
@@ -137,31 +156,34 @@ bool areMatricesEqual(float m1[M][M], float m2[M][M], float tolerance = 1e-6) {
     return true; // Matrices are equal within the tolerance
 }
 
-
-
-int main() {
+int main()
+{
     // float m1[N][N], m2[N][N], res1[N][N] = {0}, res2[N][N] = {0};
     float m1[M][N] __attribute__((aligned(32)));
     float m2[N][M] __attribute__((aligned(32)));
 
     float res1[M][M] = {0}, res2[M][M] = {0};
 
-    cout<<"m1 matrix:"<<endl;
-    for (int i = 0; i < M; i++) {
-        for (int j = 0; j < N; j++) {
+    cout << "m1 matrix:" << endl;
+    for (int i = 0; i < M; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
             m1[i][j] = 1;
             cout << m1[i][j] << " ";
         }
-        cout<<endl;
+        cout << endl;
     }
 
-    cout<<"m2 matrix:"<<endl;
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < M; j++) {
+    cout << "m2 matrix:" << endl;
+    for (int i = 0; i < N; i++)
+    {
+        for (int j = 0; j < M; j++)
+        {
             m2[i][j] = 2;
             cout << m2[i][j] << " ";
         }
-        cout<<endl;
+        cout << endl;
     }
 
     // Measure time for non-AVX implementation using 2D arrays
@@ -176,8 +198,8 @@ int main() {
     end = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed_avx = end - start;
 
-    printMatrices(res1);  
-    printMatrices(res2, true);  
+    printMatrices(res1);
+    printMatrices(res2, true);
 
     cout << "Execution time (Before AVX): " << elapsed_non_avx.count() << " seconds\n";
     cout << "Execution time (With AVX): " << elapsed_avx.count() << " seconds\n";
@@ -185,9 +207,12 @@ int main() {
     cout << "Speed improvement with AVX: " << speed_difference << "%\n";
 
     // Now check if the results are equal
-    if (areMatricesEqual(res1, res2)) {
+    if (areMatricesEqual(res1, res2))
+    {
         cout << "The results of the two matrix multiplication functions are equal!" << endl;
-    } else {
+    }
+    else
+    {
         cout << "The results of the two matrix multiplication functions are NOT equal!" << endl;
     }
 
@@ -216,7 +241,7 @@ Transposing with unpacklo, unpackhi, shuffle and permute
 */
 
 /*
-    
+
     float trans[N][N] = {0};
     for (int i = 0; i < N; i += 8) {
         for (int j = 0; j < N; j += 8) {
@@ -280,24 +305,23 @@ Along with transposing with unpacklo, unpackhi, shuffle and permute speed imporo
 
 /*
  * Function: matrix_multiply_avx_temp
- * 
- * Performs matrix multiplication using AVX intrinsics, storing intermediate sums in a temporary array. 
- * 
+ *
+ * Performs matrix multiplication using AVX intrinsics, storing intermediate sums in a temporary array.
+ *
  * Optimizations:
  * 1. **Vectorized Loading & Computation:** Uses `_mm256_loadu_ps`, `_mm256_mul_ps`, and `_mm256_add_ps`.
  * 2. **Temporary Storage:** Stores results with `_mm256_storeu_ps` before summing.
  * 3. **Matrix Transposition:** Improves cache efficiency using shuffle and permute operations.
- * 
+ *
  * Performance:
  * - **69% improvement for N = 128** with manual transposition.
  * - **77% improvement for N = 128** using shuffle and permute.
- * 
+ *
  * Parameters:
  * - `m1`: Input matrix (N x N).
  * - `trans`: Transposed second matrix (N x N).
  * - `res`: Output matrix (N x N).
  */
-
 
 /*
     for (int i = 0; i < N; i++) {
@@ -319,35 +343,33 @@ Along with transposing with unpacklo, unpackhi, shuffle and permute speed imporo
 
 */
 
-
 /*
 
-Used loadu, fmadd, hadd(horizontal add) and used castps, extract(sum the low and high) 
+Used loadu, fmadd, hadd(horizontal add) and used castps, extract(sum the low and high)
 Along with transposing with unpacklo, unpackhi, shuffle and permute speed imporovement is 81% for N=128
 
 */
 
 /*
  * Function: matrix_multiply_avx
- * 
+ *
  * Performs N x N matrix multiplication using AVX2 intrinsics for optimized performance.
- * 
+ *
  * Optimizations:
  * 1. **Vectorized Loading:** Uses `_mm256_loadu_ps` to load 8 values at a time.
  * 2. **FMA Operations:** Uses `_mm256_fmadd_ps` for efficient fused multiply-add computations.
  * 3. **Matrix Transposition:** Pre-transposes `m2` to improve cache locality.
  * 4. **Efficient Summation:** Utilizes `_mm256_hadd_ps` for fast horizontal summation.
- * 
+ *
  * Performance:
  * - **74% speedup for N = 128** with manual transposition.
  * - **81% speedup for N = 128** using using shuffle and permute.
- * 
+ *
  * Parameters:
  * - `m1`: Input matrix (N x N).
  * - `trans`: Pre-transposed second matrix (N x N).
  * - `res`: Output matrix (N x N).
  */
-
 
 /*
     for (int i = 0; i < N; i++) {
@@ -355,7 +377,7 @@ Along with transposing with unpacklo, unpackhi, shuffle and permute speed imporo
             __m256 sum = _mm256_setzero_ps();
 
             for (int k = 0; k < N; k += 8) {
-                __m256 vecA = _mm256_loadu_ps(&m1[i][k]); 
+                __m256 vecA = _mm256_loadu_ps(&m1[i][k]);
                 __m256 vecB = _mm256_loadu_ps(&trans[j][k]); // transposed matrix ( m2 )
 
                 sum = _mm256_fmadd_ps(vecA, vecB, sum);
@@ -371,20 +393,19 @@ Along with transposing with unpacklo, unpackhi, shuffle and permute speed imporo
     }
 */
 
-
 /*
  * Function: mulMatAVX
- * 
+ *
  * Performs matrix multiplication using AVX intrinsics for efficient computation.
- * 
+ *
  * Optimizations:
  * 1. **Vectorized Column Extraction:** Stores `m2` columns in a temporary array to improve cache locality.
  * 2. **AVX Operations:** Uses `_mm256_loadu_ps`, `_mm256_mul_ps`, and `_mm256_add_ps` for efficient SIMD computation.
  * 3. **Efficient Summation:** Stores intermediate sums in a temporary array before accumulating results.
- * 
+ *
  * Performance:
  * - **65% speedup for N = 128** using AVX.
- * 
+ *
  * Parameters:
  * - `m1`, `m2`: Input matrices of size N x N.
  * - `res`: Output matrix of size N x N.
@@ -395,7 +416,7 @@ Along with transposing with unpacklo, unpackhi, shuffle and permute speed imporo
 
 void mulMatAVX(float m1[N][N], float m2[N][N], float res[N][N], int n) {
     for (int columns = 0; columns < n; columns++) {
-        
+
         float column[N];
         for (size_t row = 0; row < N; row ++ ) {
             column[row] = m2[row][columns];
@@ -425,15 +446,14 @@ New methord logic
 */
 
 /*
-    //1. For nxn for 256 intrinsic, first we load the 8 rows of matrix 2. 
+    //1. For nxn for 256 intrinsic, first we load the 8 rows of matrix 2.
     //2. we take in the first element of matrix 1 and muliply with first row of matrix 2
     //3. we store the each multiplied values in the res matrix first row respectively.
     //4. we then modifiy step 2 by taking the 2nd element of 1st matrix 1st row and multiply them with the second row of matrix 2.
     //5. store them in by adding the res matrix first row previously saved values.
-    //6. we continue this step until all the elements of the first row is properly identified. 
-    //7. now we move to the second row of first matrix and proceed the same. 
+    //6. we continue this step until all the elements of the first row is properly identified.
+    //7. now we move to the second row of first matrix and proceed the same.
 */
-
 
 /*
 Starting idea for block wise matrix multiplication.
@@ -460,21 +480,18 @@ Starting idea for block wise matrix multiplication.
     }
 */
 
+// for(int rows = 0; rows < n; rows += 50) {
+//     for(int cols = 0; cols < n; cols += 8) {
+//         for(int col8 = cols; col8 < cols + 8; col8++) {
+//             _m256 row1 = _mm256_loadu_ps(&m2[rows][col8]);
+//             for(int row8 = rows; row8 < rows + 8; row8++) {
 
-    // for(int rows = 0; rows < n; rows += 50) {
-    //     for(int cols = 0; cols < n; cols += 8) {
-    //         for(int col8 = cols; col8 < cols + 8; col8++) {
-    //             _m256 row1 = _mm256_loadu_ps(&m2[rows][col8]);
-    //             for(int row8 = rows; row8 < rows + 8; row8++) {
-
-    //         __m256
-    
-
+//         __m256
 
 // // Function to check if two matrices are equal element-wise
 // void mulMatAVX(float m1[N][N], float m2[N][N], float res[N][N], int n) {
 //     for (int columns = 0; columns < n; columns++) { // traverse through each column of m2
-        
+
 //         float column[N] = {0};
 //         for (size_t i = 0; i < N; i ++ ) {
 //             _mm256_store_ps(&column[i], _mm256_loadu_ps(&m2[i][columns]));
@@ -483,15 +500,15 @@ Starting idea for block wise matrix multiplication.
 //         for (int rows = 0; rows < n; rows++) { // traverse through each row of m1
 
 //             __m256 sum = _mm256_setzero_ps();
-            
+
 //             for (int k = 0; k < n; k += 8) { //in 256 traverse through 8 elements at the same time and multiply them
 //                 if (k + 7 < N)
 //                 {
 //                     __m256 data = _mm256_loadu_ps(&m1[rows][k]);
 //                     __m256 data2 = _mm256_loadu_ps(&column[k]);
-//                     sum = _mm256_add_ps(sum, _mm256_mul_ps(data, data2));   
+//                     sum = _mm256_add_ps(sum, _mm256_mul_ps(data, data2));
 //                 }
-//                 else 
+//                 else
 //                     for (int j = k; j < N; j++) {
 //                         sum = _mm256_add_ps(sum, _mm256_set1_ps(m1[rows][j] * column[j]));
 //                     }
@@ -505,9 +522,6 @@ Starting idea for block wise matrix multiplication.
 //         }
 //     }
 // }
-
-
-
 
 // void mulMatAVX(float m1[N][N], float m2[N][N], float res[N][N]) {
 //     for (int i = 0; i < N; i++) {   // Iterate over rows of A
@@ -524,7 +538,7 @@ Starting idea for block wise matrix multiplication.
 //                 // Step 4: Blend A with zeros
 //                 __m256 blendA1 = _mm256_blend_ps(rowA1, _mm256_setzero_ps(), 0b11110000);
 //                 __m256 blendA2 = _mm256_blend_ps(rowA1, _mm256_setzero_ps(), 0b01000001);
-                
+
 //                 // Step 9: Blend next block of A
 //                 __m256 blendA3 = _mm256_blend_ps(rowA2, _mm256_setzero_ps(), 0b11110000);
 //                 __m256 blendA4 = _mm256_blend_ps(rowA2, _mm256_setzero_ps(), 0b01000001);
