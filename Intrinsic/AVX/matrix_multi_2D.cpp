@@ -17,7 +17,7 @@ void mulMat(float m1[M][N], float m2[N][M], float res[M][M], int m, int n)
     for (int i = 0; i < m; i++)
     {
         for (int j = 0; j < m; j++)
-        {
+        { 
             float sum = 0.0f;
             for (int k = 0; k < n; k++)
             {
