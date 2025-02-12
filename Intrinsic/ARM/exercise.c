@@ -2,6 +2,9 @@
 #include <arm_neon.h>
 
 
+// To run
+// 
+
 float dot_product(float *A, float *B, int N) {
     float32x4_t sum = vmovq_n_f32(0.0);
     for (int i = 0; i < N; i+=4) {
@@ -29,6 +32,8 @@ int main() {
 
     return 0;
 }
+
+
 /* Methord 1 */
 // float dot_product(float *A, float *B, int N) {
 //     float32x4_t sum = vmovq_n_f32(0.0);
@@ -43,6 +48,7 @@ int main() {
 //     return final_sum[0] + final_sum[1] + final_sum[2] + final_sum[3];
 // }
 
+
 /* Methord 2 */
 // float dot_product(float *A, float *B, int N) {
 //     float32x4_t sum = vmovq_n_f32(0.0);
@@ -53,14 +59,14 @@ int main() {
 //         sum = vaddq_f32(sum, c_i);
 //     }
 //     float32x2_t sum_low, sum_high, final_sum;
-
 //     sum_low = vget_low_f32(sum);
 //     sum_high = vget_high_f32(sum);
 //     final_sum = vadd_f32(sum_low, sum_high);
-
 //     return vget_lane_f32(vpadd_f32(final_sum, final_sum), 0); 
 // }
 
+
+/* Multiplication */
 // void vector_multiplication(float *A, float *B, float *C, int N) {
 //     for (int i = 0; i < N; i+=4) {
 //         float32x4_t a = vld1q_f32(A+i);
@@ -70,6 +76,8 @@ int main() {
 //     }
 // }
 
+
+/* Addition */
 // void vector_addition(float *A, float *B, float *C, int N) {
 
 
