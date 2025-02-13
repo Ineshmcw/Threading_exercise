@@ -47,80 +47,49 @@ void printMatrices(float res[M][M], int isAVX)
     }
 }
 
-void mulMatAVX(float m1[M][N], float m2[N][M], float res[M][M], int m, int n)
-{
-    int chunk_size = 4;
-    int aligned_n = (n / chunk_size) * chunk_size; // Largest multiple of 8 ≤ N
-    int aligned_m = (m / chunk_size) * chunk_size; // Largest multiple of 8 ≤ N
 
-    // Process full 8×8 blocks
-    for (int bi = 0; bi < aligned_m; bi += chunk_size)
-    {
-        for (int bj = 0; bj < aligned_m; bj += chunk_size)
-        {
-            for (int bk = 0; bk < aligned_n; bk += chunk_size)
-            {
-                // Load 8 rows of m2
-                for (int rowm2 = bk; rowm2 < bk + chunk_size; rowm2 += 8)
-                {
-                    float32x4_t  row0 = vld1q_f32 (&m2[rowm2 + 0][bj]);
-                    float32x4_t  row1 = vld1q_f32 (&m2[rowm2 + 1][bj]);
-                    float32x4_t  row2 = vld1q_f32 (&m2[rowm2 + 2][bj]);
-                    float32x4_t  row3 = vld1q_f32 (&m2[rowm2 + 3][bj]);
+void mulMatNEON(float m1[M][N], float m2[N][M], float res[M][M], int m, int n) {
+    float trans[N][N] __attribute__((aligned(32))) = {0};
 
-                    for (int rowm1 = bi; rowm1 < bi + chunk_size; rowm1++)
-                    {
-                        float32x4_t  res_store = vld1q_f32 (&res[rowm1][bj]);
+    for (int i = 0; i < N; i += 4) {
+        for (int j = 0; j < N; j += 4) {
+            float32x4_t row0 = vld1q_f32(&m2[i + 0][j]);
+            float32x4_t row1 = vld1q_f32(&m2[i + 1][j]);
+            float32x4_t row2 = vld1q_f32(&m2[i + 2][j]);
+            float32x4_t row3 = vld1q_f32(&m2[i + 3][j]);
 
-                        res_store = vaddq_f32 (res_store, vmulq_f32 (vdupq_n_f32(m1[rowm1][rowm2 + 0]), row0));
-                        res_store = vaddq_f32 (res_store, vmulq_f32 (vdupq_n_f32(m1[rowm1][rowm2 + 1]), row1));
-                        res_store = vaddq_f32 (res_store, vmulq_f32 (vdupq_n_f32(m1[rowm1][rowm2 + 2]), row2));
-                        res_store = vaddq_f32 (res_store, vmulq_f32 (vdupq_n_f32(m1[rowm1][rowm2 + 3]), row3));
+            // **Transpose 4x4 using NEON**
+            float32x4x2_t t01 = vzipq_f32(row0, row1);
+            float32x4x2_t t23 = vzipq_f32(row2, row3);
 
-                        vst1q_f32(&res[rowm1][bj], res_store);
-                    }
-                }
-            }
+            float32x4_t tt0 = vcombine_f32(vget_low_f32(t01.val[0]), vget_low_f32(t23.val[0]));
+            float32x4_t tt1 = vcombine_f32(vget_high_f32(t01.val[0]), vget_high_f32(t23.val[0]));
+            float32x4_t tt2 = vcombine_f32(vget_low_f32(t01.val[1]), vget_low_f32(t23.val[1]));
+            float32x4_t tt3 = vcombine_f32(vget_high_f32(t01.val[1]), vget_high_f32(t23.val[1]));
 
-            // Load the remaining rows of m2
-            for (int rowm2 = aligned_n; rowm2 < n; rowm2++)
-            {
-                float32x4_t row = vld1q_f32 (&m2[rowm2][bj]);
-
-                for (int rowm1 = bi; rowm1 < bi + chunk_size; rowm1++)
-                {
-                    float32x4_t res_store = vld1q_f32 (&res[rowm1][bj]);
-                    res_store = vaddq_f32 (res_store, vmulq_f32 (vdupq_n_f32(m1[rowm1][rowm2]), row));
-                    vst1q_f32(&res[rowm1][bj], res_store);
-                }
-            }
+            vst1q_f32(&trans[j + 0][i], tt0);
+            vst1q_f32(&trans[j + 1][i], tt1);
+            vst1q_f32(&trans[j + 2][i], tt2);
+            vst1q_f32(&trans[j + 3][i], tt3);
         }
     }
 
-    // Handling remaining rows and columns
-    for (int i = 0; i < m; i++)
-    {
-        for (int j = aligned_n; j < m; j++)
-        { // Remaining columns
-            float sum = 0;
-            for (int k = 0; k < n; k++)
-            {
-                sum += m1[i][k] * m2[k][j];
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < M; j++) {
+            float32x4_t sum = vdupq_n_f32(0);
+
+            for (int k = 0; k < N; k += 4) {
+                float32x4_t vecA = vld1q_f32(&m1[i][k]);
+                float32x4_t vecB = vld1q_f32(&trans[j][k]);
+
+                sum = vfmaq_f32(sum, vecA, vecB);
             }
-            res[i][j] = sum;
-        }
-    }
-    
-    for (int i = aligned_m; i < m; i++)
-    { // Remaining rows
-        for (int j = 0; j < aligned_n; j++)
-        {
-            float sum = 0;
-            for (int k = 0; k < n; k++)
-            {
-                sum += m1[i][k] * m2[k][j];
-            }
-            res[i][j] = sum;
+
+            // **Horizontal Sum**
+            float32x2_t sum2 = vadd_f32(vget_low_f32(sum), vget_high_f32(sum));
+            float final_sum = vget_lane_f32(vpadd_f32(sum2, sum2), 0);
+
+            res[i][j] = final_sum;
         }
     }
 }
@@ -181,7 +150,7 @@ int main()
 
     // Measure time for AVX-based implementation
     start = clock();
-    mulMatAVX(m1, m2, res2, M, N);
+    mulMatNEON(m1, m2, res2, M, N);
     end = clock();
     double elapsed_avx = (double)(end - start) / CLOCKS_PER_SEC;
 
