@@ -3,7 +3,8 @@
 
 
 // To run
-// 
+// arm-linux-gnueabihf-gcc -march=armv7-a -mfpu=neon -mfloat-abi=hard -o exercise exercise.c
+// qemu-arm -L /usr/arm-linux-gnueabihf/ ./exercise
 
 float dot_product(float *A, float *B, int N) {
     float32x4_t sum = vmovq_n_f32(0.0);

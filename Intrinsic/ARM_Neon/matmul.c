@@ -7,6 +7,10 @@
 #define N 128
 #define M 128
 
+// To run
+// arm-linux-gnueabihf-gcc -march=armv7-a -mfpu=neon -mfloat-abi=hard -o matmul matmul.c
+// qemu-arm -L /usr/arm-linux-gnueabihf/ ./matmul
+
 // Standard matrix multiplication using 2D arrays
 void mulMat(float m1[M][N], float m2[N][M], float res[M][M], int m, int n)
 {
