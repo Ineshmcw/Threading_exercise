@@ -456,31 +456,6 @@ New methord logic
     //7. now we move to the second row of first matrix and proceed the same.
 */
 
-/*
-Starting idea for block wise matrix multiplication.
-*/
-
-/*
-
-    for(int i = 0; i < n; i += 8) {
-        for(int j = 0; j < n; j += 8) {
-            for(int k = 0; k < n; k += 8) {
-                for(int x = i; x < i + 8; x++) {
-                    for(int y = j; y < j + 8; y++) {
-                        __m256 c_vec = _mm256_setzero_ps();
-                        for(int z = k; z < k + 8; z += 8) {
-                            __m256 a_vec = _mm256_loadu_ps(&m1[i][k]);  // Load 8 elements of A[i][k]
-                            __m256 b_vec = _mm256_loadu_ps(&m2[k][j]);  // Load 8 elements of B[k][j]
-                            c_vec = _mm256_fmadd_ps(a_vec, b_vec, c_vec); // FMA: c_vec += a_vec * b_vec
-                        }
-                        res[i + x][j + y] = sum;
-                    }
-                }
-            }
-        }
-    }
-*/
-
 // for(int rows = 0; rows < n; rows += 50) {
 //     for(int cols = 0; cols < n; cols += 8) {
 //         for(int col8 = cols; col8 < cols + 8; col8++) {
